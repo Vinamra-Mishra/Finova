@@ -1,0 +1,19 @@
+{
+  "short_name": "Finova",
+  "name": "Finova – Personal Finance Dashboard",
+  "description": "Track expenses, manage investments, and plan your financial future.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f2f2f7",
+  "theme_color": "#007aff",
+  "categories": ["finance", "productivity"]
+}
