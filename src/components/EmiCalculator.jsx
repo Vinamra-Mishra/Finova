@@ -6,15 +6,14 @@ import {
 import { Doughnut, Line } from 'react-chartjs-2';
 import {
   cssVar, buildGradient, tooltipDefaults, axisDefaults,
-  doughnutCenterLabel, fmtFull, fmtK
+  doughnutCenterLabel
 } from '../utils/chartUtils';
+import { CURRENCY_INFO } from '../utils/currency';
 
 ChartJS.register(
   ArcElement, Tooltip, Legend, doughnutCenterLabel,
   CategoryScale, LinearScale, PointElement, LineElement, Filler
 );
-
-const fmt = fmtFull;
 
 /* ── shared slider component ── */
 function SliderField({ label, value, onChange, min, max, step, unit = '', displayValue }) {
@@ -44,29 +43,51 @@ function SliderField({ label, value, onChange, min, max, step, unit = '', displa
   );
 }
 
-export default function EmiCalculator() {
-  const [loanAmount, setLoanAmount]     = useState(50000);
-  const [interestRate, setInterestRate] = useState(8.5);
-  const [tenure, setTenure]             = useState(15);
-  const [tenureType, setTenureType]     = useState('years');
+export default function EmiCalculator({ currency, rate, fmt, fmtK }) {
+  const [loanAmount, setLoanAmount] = useState(100000);
+  const [interestRate, setInterestRate] = useState(7.5);
+  const [tenure, setTenure] = useState(15);
+  const [tenureType, setTenureType] = useState('years'); // 'years' or 'months'
+
+  const symbol = CURRENCY_INFO[currency]?.symbol || '$';
 
   const tenureMonths = tenureType === 'years' ? tenure * 12 : tenure;
 
   const calc = useMemo(() => {
-    const P = loanAmount, r = interestRate / 12 / 100, n = tenureMonths;
-    if (P <= 0 || n <= 0) return { emi: 0, total: 0, interest: 0, schedule: [] };
-    const emi = r === 0 ? P / n : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-    const total = emi * n, interest = total - P;
+    const r = interestRate / 1200; // monthly rate
+    const n = tenureMonths;
+    let emi = 0;
+    if (r > 0) {
+      emi = (loanAmount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    } else {
+      emi = loanAmount / n;
+    }
+    const total = emi * n;
+    const interest = total - loanAmount;
+
+    // repayment schedule (yearly summary)
     const schedule = [];
-    let balance = P, cumInterest = 0, cumPrincipal = 0;
+    let balance = loanAmount;
+    let cumPrincipal = 0;
+    let cumInterest = 0;
+
     for (let m = 1; m <= n; m++) {
-      const iPaid = balance * r, pPaid = emi - iPaid;
-      balance = Math.max(0, balance - pPaid);
-      cumInterest += iPaid; cumPrincipal += pPaid;
+      const interestPaid = balance * r;
+      const principalPaid = emi - interestPaid;
+      balance -= principalPaid;
+      cumPrincipal += principalPaid;
+      cumInterest += interestPaid;
+
       if (m % 12 === 0 || m === n) {
-        schedule.push({ year: Math.ceil(m / 12), cumPrincipal, cumInterest, balance });
+        schedule.push({
+          year: Math.ceil(m / 12),
+          cumPrincipal: Math.round(cumPrincipal),
+          cumInterest: Math.round(cumInterest),
+          balance: Math.max(0, Math.round(balance)),
+        });
       }
     }
+
     return { emi: Math.round(emi), total: Math.round(total), interest: Math.round(interest), schedule };
   }, [loanAmount, interestRate, tenureMonths]);
 
@@ -91,7 +112,9 @@ export default function EmiCalculator() {
         labels: { color: cssVar('--text-secondary', '#6c6c70'), font: { family: 'Outfit', size: 11 }, boxWidth: 10, boxHeight: 10, padding: 16, usePointStyle: true, pointStyleWidth: 10 }
       },
       tooltip: { ...tooltipDefaults(), callbacks: { label: ctx => `  ${ctx.label}  ${fmt(ctx.raw)}` } },
-      doughnutCenterLabel: true,
+      doughnutCenterLabel: {
+        format: fmt
+      },
     },
   };
 
@@ -152,7 +175,7 @@ export default function EmiCalculator() {
           <SliderField
             label="Loan Amount" value={loanAmount} onChange={setLoanAmount}
             min={1000} max={1000000} step={1000}
-            displayValue={v => `$${(v / 1000).toFixed(0)}K`}
+            displayValue={v => `${symbol}${(v / 1000).toFixed(0)}K`}
           />
           <SliderField
             label="Interest Rate (p.a.)" value={interestRate} onChange={setInterestRate}

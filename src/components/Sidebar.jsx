@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, CreditCard, TrendingUp, Landmark, PiggyBank, Sun, Moon, Download, WifiOff, Zap } from 'lucide-react';
+import { LayoutDashboard, CreditCard, TrendingUp, Landmark, PiggyBank, Sun, Moon, Download, WifiOff, Zap, RefreshCw, Coins } from 'lucide-react';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { id: 'sip', label: 'SIP Calc', icon: PiggyBank },
 ];
 
-export default function Sidebar({ currentTab, setCurrentTab, theme, toggleTheme }) {
+export default function Sidebar({ currentTab, setCurrentTab, theme, toggleTheme, currency, setCurrency, updateExchangeRates, isUpdatingRates, ratesUpdated }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
@@ -91,6 +91,40 @@ export default function Sidebar({ currentTab, setCurrentTab, theme, toggleTheme 
             </button>
           </div>
         )}
+
+        {/* Currency settings card */}
+        <div className="pwa-card" style={{ marginBottom: 0 }}>
+          <div className="pwa-card-header">
+            <Coins size={14} />
+            <span>Currency & Rates</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem' }}>
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className="currency-select-dropdown"
+              style={{ flex: 1, padding: '0.45rem', fontSize: '0.8rem' }}
+            >
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="INR">INR (₹)</option>
+            </select>
+            <button
+              onClick={updateExchangeRates}
+              disabled={isUpdatingRates}
+              className="theme-btn"
+              style={{ width: 'auto', padding: '0.45rem 0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Update exchange rates"
+            >
+              <RefreshCw size={13} className={isUpdatingRates ? 'spin' : ''} />
+            </button>
+          </div>
+          {ratesUpdated && (
+            <p style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textAlign: 'center', margin: 0 }}>
+              Updated: {new Date(ratesUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
 
         <button onClick={toggleTheme} className="theme-btn">
           {theme === 'light'
@@ -274,6 +308,27 @@ export default function Sidebar({ currentTab, setCurrentTab, theme, toggleTheme 
         }
         .theme-btn:hover {
           background: var(--border-strong);
+        }
+        .currency-select-dropdown {
+          background: var(--input-bg);
+          color: var(--text-primary);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          font-family: var(--font-family);
+          font-weight: 500;
+          outline: none;
+          cursor: pointer;
+          transition: border-color 0.2s;
+        }
+        .currency-select-dropdown:focus {
+          border-color: var(--accent-color);
+        }
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
 
         /* ── Mobile Bottom Bar ── */

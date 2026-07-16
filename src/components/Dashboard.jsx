@@ -9,15 +9,8 @@ import {
   Calendar, ArrowRight, ShoppingBag
 } from 'lucide-react';
 import {
-  cssVar, buildGradient, tooltipDefaults, axisDefaults, fmtK, fmtFull
+  cssVar, buildGradient, tooltipDefaults, axisDefaults
 } from '../utils/chartUtils';
-
-ChartJS.register(
-  CategoryScale, LinearScale, PointElement, LineElement,
-  BarElement, Title, Tooltip, Legend, Filler
-);
-
-const fmt = fmtFull;
 
 /* ─────────── KPI stat card ─────────── */
 function StatCard({ label, value, sub, icon: Icon, iconBg, iconColor, valueColor, delay = 0 }) {
@@ -47,7 +40,7 @@ function StatCard({ label, value, sub, icon: Icon, iconBg, iconColor, valueColor
 }
 
 /* ─────────── Gradient line chart ─────────── */
-function NetWorthChart({ netWorth }) {
+function NetWorthChart({ netWorth, fmt, fmtK }) {
   const labels = ['6M', '5M', '4M', '3M', '2M', '1M', 'Now'];
   const rawData = [0.76, 0.82, 0.85, 0.87, 0.92, 0.97, 1].map(f => Math.round(netWorth * f));
 
@@ -103,7 +96,7 @@ function NetWorthChart({ netWorth }) {
 }
 
 /* ─────────── Gradient bar chart ─────────── */
-function SpendBarChart({ expenses }) {
+function SpendBarChart({ expenses, fmt, fmtK }) {
   const months = useMemo(() => {
     const arr = [];
     for (let i = 5; i >= 0; i--) {
@@ -213,8 +206,13 @@ function SpendBarChart({ expenses }) {
   return <Bar data={data} options={options} plugins={[avgLinePlugin]} />;
 }
 
+ChartJS.register(
+  CategoryScale, LinearScale, PointElement, LineElement,
+  BarElement, Title, Tooltip, Legend, Filler
+);
+
 /* ─────────── Dashboard ─────────── */
-export default function Dashboard({ expenses, investments, budgetLimit, setCurrentTab }) {
+export default function Dashboard({ expenses, investments, budgetLimit, setCurrentTab, currency, rate, fmt, fmtK }) {
   const DEFAULT_MONTHLY_INCOME = 5000;
 
   const stats = useMemo(() => {
@@ -263,7 +261,7 @@ export default function Dashboard({ expenses, investments, budgetLimit, setCurre
       <div className="grid-4" style={{ marginBottom: '2rem' }}>
         <StatCard
           label="Net Worth" value={fmt(stats.netWorth)}
-          sub={`Portfolio ${fmt(stats.totalCurrentValue)} + $5K cash`}
+          sub={`Portfolio ${fmt(stats.totalCurrentValue)} + ${fmt(5000)} cash`}
           icon={Wallet} iconBg="var(--accent-light)" iconColor="var(--accent-color)"
           delay={0}
         />
@@ -320,7 +318,7 @@ export default function Dashboard({ expenses, investments, budgetLimit, setCurre
             </div>
           </div>
           <div style={{ height: '220px' }}>
-            <NetWorthChart netWorth={stats.netWorth} />
+            <NetWorthChart netWorth={stats.netWorth} fmt={fmt} fmtK={fmtK} />
           </div>
         </div>
 
@@ -337,7 +335,7 @@ export default function Dashboard({ expenses, investments, budgetLimit, setCurre
             </div>
           </div>
           <div style={{ height: '220px' }}>
-            <SpendBarChart expenses={expenses} />
+            <SpendBarChart expenses={expenses} fmt={fmt} fmtK={fmtK} />
           </div>
         </div>
 

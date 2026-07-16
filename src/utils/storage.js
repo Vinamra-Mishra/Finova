@@ -1,8 +1,13 @@
+import { DEFAULT_RATES } from './currency';
+
 const KEYS = {
   EXPENSES: 'pf_dashboard_expenses',
   INVESTMENTS: 'pf_dashboard_investments',
   BUDGET_LIMIT: 'pf_dashboard_budget_limit',
-  THEME: 'pf_dashboard_theme'
+  THEME: 'pf_dashboard_theme',
+  CURRENCY: 'pf_dashboard_currency',
+  RATES: 'pf_dashboard_rates',
+  RATES_UPDATED: 'pf_dashboard_rates_updated'
 };
 
 const DEFAULT_EXPENSES = [
@@ -62,5 +67,38 @@ export const storage = {
 
   saveTheme(theme) {
     localStorage.setItem(KEYS.THEME, theme);
+  },
+
+  getCurrency() {
+    return localStorage.getItem(KEYS.CURRENCY) || 'USD';
+  },
+
+  saveCurrency(currency) {
+    localStorage.setItem(KEYS.CURRENCY, currency);
+  },
+
+  getRates() {
+    const data = localStorage.getItem(KEYS.RATES);
+    if (!data) {
+      this.saveRates(DEFAULT_RATES);
+      return DEFAULT_RATES;
+    }
+    try {
+      return JSON.parse(data);
+    } catch {
+      return DEFAULT_RATES;
+    }
+  },
+
+  saveRates(rates) {
+    localStorage.setItem(KEYS.RATES, JSON.stringify(rates));
+  },
+
+  getRatesUpdated() {
+    return localStorage.getItem(KEYS.RATES_UPDATED) || null;
+  },
+
+  saveRatesUpdated(timestamp) {
+    localStorage.setItem(KEYS.RATES_UPDATED, timestamp);
   }
 };

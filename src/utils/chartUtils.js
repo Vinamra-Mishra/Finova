@@ -125,7 +125,16 @@ export const doughnutCenterLabel = {
     ctx.fillStyle = cssVar('--text-primary', '#1c1c1e');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(fmtFull(total), centerX, centerY - 9);
+
+    const pluginOpts = chart.config.options.plugins?.doughnutCenterLabel;
+    let text = '';
+    if (pluginOpts && typeof pluginOpts.format === 'function') {
+      text = pluginOpts.format(total);
+    } else {
+      text = fmtFull(total);
+    }
+
+    ctx.fillText(text, centerX, centerY - 9);
     // Label
     ctx.font = `400 0.65rem Outfit, sans-serif`;
     ctx.fillStyle = cssVar('--text-tertiary', '#aeaeb2');

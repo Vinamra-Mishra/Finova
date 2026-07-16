@@ -3,7 +3,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import { Plus, Trash2, Edit2, Search, Download, Upload, X, CreditCard } from 'lucide-react';
 import { exportToCSV, parseCSV } from '../utils/csv';
-import { cssVar, tooltipDefaults, doughnutCenterLabel, fmtFull } from '../utils/chartUtils';
+import { cssVar, tooltipDefaults, doughnutCenterLabel } from '../utils/chartUtils';
 
 ChartJS.register(ArcElement, Tooltip, Legend, doughnutCenterLabel);
 
@@ -20,9 +20,7 @@ const CAT_COLORS = {
   'Others': '#8e8e93',
 };
 
-const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v);
-
-export default function ExpenseTracker({ expenses, setExpenses, budgetLimit, setBudgetLimit, showToast }) {
+export default function ExpenseTracker({ expenses, setExpenses, budgetLimit, setBudgetLimit, showToast, currency, rate, fmt, fmtK }) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -105,14 +103,16 @@ export default function ExpenseTracker({ expenses, setExpenses, budgetLimit, set
           }
         }
       },
-      doughnutCenterLabel: true,
+      doughnutCenterLabel: {
+        format: fmt
+      },
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!description.trim() || !amount || Number(amount) <= 0) return showToast('Enter a valid description and amount.', 'danger');
-    const tx = { id: editingId || Math.random().toString(36).slice(2, 9), description: description.trim(), amount: parseFloat(amount), category, date };
+    const tx = { id: editingId || Math.random().toString(36).slice(2, 9), description: description.trim(), amount: parseFloat(amount) / rate, category, date };
     if (editingId) {
       setExpenses(prev => prev.map(x => x.id === editingId ? tx : x));
       showToast('Transaction updated!', 'success');
@@ -123,7 +123,7 @@ export default function ExpenseTracker({ expenses, setExpenses, budgetLimit, set
     closeForm();
   };
 
-  const startEdit = (e) => { setEditingId(e.id); setDescription(e.description); setAmount(e.amount); setCategory(e.category); setDate(e.date); setIsFormOpen(true); };
+  const startEdit = (e) => { setEditingId(e.id); setDescription(e.description); setAmount((e.amount * rate).toFixed(2)); setCategory(e.category); setDate(e.date); setIsFormOpen(true); };
   const deleteExp = (id) => { if (window.confirm('Delete this expense?')) { setExpenses(prev => prev.filter(x => x.id !== id)); showToast('Deleted.', 'warning'); } };
 
   const closeForm = () => { setEditingId(null); setDescription(''); setAmount(''); setCategory(CATEGORIES[0]); setDate(new Date().toISOString().split('T')[0]); setIsFormOpen(false); };
@@ -193,8 +193,12 @@ export default function ExpenseTracker({ expenses, setExpenses, budgetLimit, set
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <label className="apple-label" style={{ margin: 0, flexShrink: 0 }}>Adjust Limit</label>
           <input
-            type="range" min="500" max="15000" step="250" value={budgetLimit}
-            onChange={e => setBudgetLimit(Number(e.target.value))}
+            type="range"
+            min={Math.round(500 * rate)}
+            max={Math.round(15000 * rate)}
+            step={Math.round(250 * rate)}
+            value={Math.round(budgetLimit * rate)}
+            onChange={e => setBudgetLimit(Number(e.target.value) / rate)}
             style={{ flex: 1, minWidth: 120 }}
           />
           <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', flexShrink: 0 }}>{fmt(budgetLimit)}</span>
@@ -333,7 +337,7 @@ export default function ExpenseTracker({ expenses, setExpenses, budgetLimit, set
                 <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Coffee, Rent" className="apple-input" required />
               </div>
               <div>
-                <label className="apple-label">Amount (USD)</label>
+                <label className="apple-label">Amount ({currency})</label>
                 <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="apple-input" required />
               </div>
               <div>

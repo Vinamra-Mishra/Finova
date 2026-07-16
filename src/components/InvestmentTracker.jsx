@@ -3,7 +3,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import { Plus, Trash2, Edit2, TrendingUp, TrendingDown, RefreshCw, Download, Upload, X, Search } from 'lucide-react';
 import { exportToCSV, parseCSV } from '../utils/csv';
-import { cssVar, tooltipDefaults, doughnutCenterLabel, fmtFull } from '../utils/chartUtils';
+import { cssVar, tooltipDefaults, doughnutCenterLabel } from '../utils/chartUtils';
 
 ChartJS.register(ArcElement, Tooltip, Legend, doughnutCenterLabel);
 
@@ -18,10 +18,7 @@ const CAT_COLORS = {
   'Others': '#8e8e93',
 };
 
-const fmt = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
-
-
-export default function InvestmentTracker({ investments, setInvestments, showToast }) {
+export default function InvestmentTracker({ investments, setInvestments, showToast, currency, rate, fmt, fmtK }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [investedAmount, setInvestedAmount] = useState('');
@@ -103,27 +100,36 @@ export default function InvestmentTracker({ investments, setInvestments, showToa
           }
         }
       },
-      doughnutCenterLabel: true,
+      doughnutCenterLabel: {
+        format: fmt
+      },
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim() || Number(investedAmount) <= 0 || Number(currentValue) < 0) return showToast('Fill in valid details.', 'danger');
-    const holding = { id: editingId || Math.random().toString(36).slice(2, 9), name: name.trim(), category, investedAmount: parseFloat(investedAmount), currentValue: parseFloat(currentValue), date };
-    if (editingId) { setInvestments(prev => prev.map(x => x.id === editingId ? holding : x)); showToast('Asset updated!', 'success'); }
-    else { setInvestments(prev => [holding, ...prev]); showToast('Asset added!', 'success'); }
+    const holding = { id: editingId || Math.random().toString(36).slice(2, 9), name: name.trim(), category, investedAmount: parseFloat(investedAmount) / rate, currentValue: parseFloat(currentValue) / rate, date };
+    if (editingId) {
+      setInvestments(prev => prev.map(x => x.id === editingId ? holding : x));
+      showToast('Asset updated!', 'success');
+    } else {
+      setInvestments(prev => [holding, ...prev]);
+      showToast('Asset added!', 'success');
+    }
     closeForm();
   };
 
-  const startEdit = (inv) => { setEditingId(inv.id); setName(inv.name); setCategory(inv.category); setInvestedAmount(inv.investedAmount); setCurrentValue(inv.currentValue); setDate(inv.date); setIsFormOpen(true); };
-  const deleteInv = (id) => { if (window.confirm('Remove this asset?')) { setInvestments(prev => prev.filter(x => x.id !== id)); showToast('Asset removed.', 'warning'); } };
+  const startEdit = (inv) => { setEditingId(inv.id); setName(inv.name); setCategory(inv.category); setInvestedAmount((inv.investedAmount * rate).toFixed(2)); setCurrentValue((inv.currentValue * rate).toFixed(2)); setDate(inv.date); setIsFormOpen(true); };
+
+  const deleteInv = (id) => { if (window.confirm('Delete this holding?')) { setInvestments(prev => prev.filter(x => x.id !== id)); showToast('Deleted.', 'warning'); } };
+
   const closeForm = () => { setEditingId(null); setName(''); setCategory(CATEGORIES[0]); setInvestedAmount(''); setCurrentValue(''); setDate(new Date().toISOString().split('T')[0]); setIsFormOpen(false); };
 
   const handleQuickUpdate = (id) => {
     const val = parseFloat(quickValueInput);
     if (isNaN(val) || val < 0) return showToast('Invalid amount.', 'danger');
-    setInvestments(prev => prev.map(x => x.id === id ? { ...x, currentValue: val } : x));
+    setInvestments(prev => prev.map(x => x.id === id ? { ...x, currentValue: val / rate } : x));
     showToast('Value updated!', 'success');
     setQuickUpdateId(null); setQuickValueInput('');
   };
@@ -278,7 +284,7 @@ export default function InvestmentTracker({ investments, setInvestments, showToa
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.87rem' }}>{fmt(inv.currentValue)}</span>
                             <button
-                              onClick={() => { setQuickUpdateId(inv.id); setQuickValueInput(inv.currentValue); }}
+                              onClick={() => { setQuickUpdateId(inv.id); setQuickValueInput((inv.currentValue * rate).toFixed(2)); }}
                               className="icon-btn" style={{ width: 24, height: 24, borderRadius: 6 }}
                               title="Update value"
                             >
@@ -347,11 +353,11 @@ export default function InvestmentTracker({ investments, setInvestments, showToa
                 </select>
               </div>
               <div>
-                <label className="apple-label">Invested Amount ($)</label>
+                <label className="apple-label">Invested Amount ({currency})</label>
                 <input type="number" step="0.01" value={investedAmount} onChange={e => setInvestedAmount(e.target.value)} placeholder="0.00" className="apple-input" required />
               </div>
               <div>
-                <label className="apple-label">Current Value ($)</label>
+                <label className="apple-label">Current Value ({currency})</label>
                 <input type="number" step="0.01" value={currentValue} onChange={e => setCurrentValue(e.target.value)} placeholder="0.00" className="apple-input" required />
               </div>
               <div>

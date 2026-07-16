@@ -6,15 +6,14 @@ import {
 import { Doughnut, Line } from 'react-chartjs-2';
 import {
   cssVar, buildGradient, tooltipDefaults, axisDefaults,
-  doughnutCenterLabel, fmtFull, fmtK
+  doughnutCenterLabel
 } from '../utils/chartUtils';
+import { CURRENCY_INFO } from '../utils/currency';
 
 ChartJS.register(
   ArcElement, Tooltip, Legend, doughnutCenterLabel,
   CategoryScale, LinearScale, PointElement, LineElement, Filler
 );
-
-const fmt = fmtFull;
 
 /* ── shared slider ── */
 function SliderField({ label, value, onChange, min, max, step, unit = '', displayValue }) {
@@ -44,33 +43,54 @@ function SliderField({ label, value, onChange, min, max, step, unit = '', displa
   );
 }
 
-export default function SipCalculator() {
-  const [monthly, setMonthly] = useState(500);
-  const [rate, setRate]       = useState(12);
-  const [years, setYears]     = useState(10);
+export default function SipCalculator({ currency, rate: exchangeRate, fmt, fmtK }) {
+  const [monthly, setMonthly] = useState(2500);
+  const [rate, setRate] = useState(12);
+  const [years, setYears] = useState(15);
+
+  const symbol = CURRENCY_INFO[currency]?.symbol || '$';
 
   const calc = useMemo(() => {
-    const P = monthly, i = rate, n = years;
-    const m = n * 12, r = i / 12 / 100;
-    if (P <= 0 || r <= 0 || m <= 0) return { invested: 0, future: 0, wealth: 0, schedule: [] };
-    const invested = P * m;
-    const future = P * ((Math.pow(1 + r, m) - 1) / r) * (1 + r);
-    const wealth = future - invested;
-    const schedule = [];
-    for (let yr = 1; yr <= n; yr++) {
-      const cm = yr * 12;
-      const yrInvested = P * cm;
-      const yrValue = P * ((Math.pow(1 + r, cm) - 1) / r) * (1 + r);
-      schedule.push({ year: yr, invested: Math.round(yrInvested), value: Math.round(yrValue), wealth: Math.round(yrValue - yrInvested) });
+    const P = monthly;
+    const i = rate / 100 / 12; // monthly interest rate
+    const n = years * 12; // monthly periods
+
+    let future = 0;
+    if (i > 0) {
+      future = P * ((Math.pow(1 + i, n) - 1) / i) * (1 + i);
+    } else {
+      future = P * n;
     }
-    return { invested: Math.round(invested), future: Math.round(future), wealth: Math.round(wealth), schedule };
+
+    const invested = P * n;
+    const wealth = Math.max(0, future - invested);
+
+    // schedule of values (yearly)
+    const schedule = [];
+    for (let y = 1; y <= years; y++) {
+      const ny = y * 12;
+      let val = 0;
+      if (i > 0) {
+        val = P * ((Math.pow(1 + i, ny) - 1) / i) * (1 + i);
+      } else {
+        val = P * ny;
+      }
+      schedule.push({
+        year: y,
+        invested: P * ny,
+        value: Math.round(val),
+        wealth: Math.round(Math.max(0, val - (P * ny)))
+      });
+    }
+
+    return { future: Math.round(future), invested, wealth, schedule };
   }, [monthly, rate, years]);
 
   const returns = calc.invested > 0 ? (calc.wealth / calc.invested) * 100 : 0;
 
   /* ── Doughnut ── */
   const donutData = {
-    labels: ['Invested Capital', 'Wealth Gained'],
+    labels: ['Invested Capital', 'Wealth Gain'],
     datasets: [{
       data: [calc.invested, calc.wealth],
       backgroundColor: ['#0a84ff' + 'e6', '#30d158' + 'e6'],
@@ -89,7 +109,9 @@ export default function SipCalculator() {
         labels: { color: cssVar('--text-secondary', '#6c6c70'), font: { family: 'Outfit', size: 11 }, boxWidth: 10, boxHeight: 10, padding: 16, usePointStyle: true, pointStyleWidth: 10 }
       },
       tooltip: { ...tooltipDefaults(), callbacks: { label: ctx => `  ${ctx.label}  ${fmt(ctx.raw)}` } },
-      doughnutCenterLabel: true,
+      doughnutCenterLabel: {
+        format: fmt
+      },
     },
   };
 
@@ -179,7 +201,7 @@ export default function SipCalculator() {
 
         {/* ── Sliders ── */}
         <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-          <SliderField label="Monthly Investment" value={monthly} onChange={setMonthly} min={100} max={100000} step={100} displayValue={v => `$${(v/1000).toFixed(0)}K`} />
+          <SliderField label="Monthly Investment" value={monthly} onChange={setMonthly} min={100} max={100000} step={100} displayValue={v => `${symbol}${(v/1000).toFixed(0)}K`} />
           <SliderField label="Expected Annual Return" value={rate} onChange={setRate} min={1} max={30} step={0.5} unit="%" />
           <SliderField label="Investment Period" value={years} onChange={setYears} min={1} max={40} step={1} unit=" yrs" />
 
